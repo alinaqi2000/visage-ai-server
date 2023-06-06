@@ -2,6 +2,9 @@ const express = require("express");
 const faceapi = require("face-api.js");
 const bodyParser = require("body-parser");
 const multer = require("multer");
+var fs = require("fs");
+var path = require("path");
+
 const app = express();
 const PORT = 3000;
 const {
@@ -21,6 +24,12 @@ app.use(bodyParser.json());
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    var baseDir = path.resolve(__dirname, "./uploads");
+
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir);
+    }
+
     cb(null, "./uploads");
   },
   filename: function (req, file, cb) {
