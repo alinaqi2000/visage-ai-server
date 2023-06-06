@@ -5,7 +5,8 @@
     "node": "~12.22.12"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "watch": "nodemon server.js"
   },
   "dependencies": {
     "@tensorflow/tfjs-core": "1.7.0",

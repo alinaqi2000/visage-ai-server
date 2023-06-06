@@ -77,6 +77,65 @@ app.post("/face_detection", upload.single("image"), async (req, res) => {
 });
 
 app.post(
+  "/age_and_gender_recognition",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      if (req.file) {
+        var SERVER_URL = req.protocol + "://" + req.get("host");
+
+        const image = req.file.path;
+        await faceDetectionNet.loadFromDisk("./weights");
+        await faceapi.nets.faceLandmark68Net.loadFromDisk("./weights");
+        await faceapi.nets.ageGenderNet.loadFromDisk("./weights");
+
+        const img = await canvas.loadImage(image);
+
+        await removeFile(image);
+        const detections = await faceapi
+          .detectAllFaces(img, faceDetectionOptions)
+          .withFaceLandmarks()
+          .withAgeAndGender();
+
+        const out = faceapi.createCanvasFromMedia(img);
+        faceapi.draw.drawDetections(
+          out,
+          detections.map((res) => res.detection)
+        );
+        detections.forEach((result) => {
+          const { age, gender, genderProbability } = result;
+          new faceapi.draw.DrawTextField(
+            [
+              `${faceapi.utils.round(age, 0)} years`,
+              `${gender} (${faceapi.utils.round(genderProbability)})`,
+            ],
+            result.detection.box.bottomLeft
+          ).draw(out);
+        });
+
+        saveFile("faceDetection.png", out.toBuffer("image/png"));
+        res.json({
+          success: {
+            imageURL: SERVER_URL + "/out/faceDetection.png",
+            detections: detections.length
+              ? detections.map((e) => e["detection"])
+              : [],
+          },
+        });
+      } else {
+        res.json({
+          error: "Please add a valid image.",
+        });
+      }
+    } catch (e) {
+      res.json({
+        error: e,
+      });
+    }
+  }
+);
+
+app.post(
   "/face_expression_recognition",
   upload.single("image"),
   async (req, res) => {
