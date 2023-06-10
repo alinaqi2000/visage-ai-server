@@ -4,8 +4,13 @@ const bodyParser = require("body-parser");
 const multer = require("multer");
 var fs = require("fs");
 var path = require("path");
-
+const cors = require("cors");
 const app = express();
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 const PORT = 3000;
 const {
   canvas,
@@ -42,7 +47,6 @@ app.post("/face_detection", upload.single("image"), async (req, res) => {
   try {
     if (req.file) {
       var SERVER_URL = req.protocol + "://" + req.get("host");
-
       const image = req.file.path;
 
       await faceDetectionNet.loadFromDisk("./weights");
@@ -60,7 +64,10 @@ app.post("/face_detection", upload.single("image"), async (req, res) => {
       saveFile("faceDetection.png", out.toBuffer("image/png"));
       res.json({
         success: {
-          imageURL: SERVER_URL + "/out/faceDetection.png",
+          imageURL:
+            SERVER_URL +
+            "/out/faceDetection.png?" +
+            Math.round(Math.random() * 10000000000),
           detections: detections,
         },
       });
@@ -116,9 +123,17 @@ app.post(
         saveFile("faceDetection.png", out.toBuffer("image/png"));
         res.json({
           success: {
-            imageURL: SERVER_URL + "/out/faceDetection.png",
+            imageURL:
+              SERVER_URL +
+              "/out/faceDetection.png?" +
+              Math.round(Math.random() * 10000000000),
             detections: detections.length
-              ? detections.map((e) => e["detection"])
+              ? detections.map((e) => ({
+                  ...e["detection"],
+                  gender: e.gender,
+                  genderProbability: e.genderProbability,
+                  age: e.age,
+                }))
               : [],
           },
         });
@@ -165,9 +180,15 @@ app.post(
         saveFile("faceExpressionRecognition.png", out.toBuffer("image/png"));
         res.json({
           success: {
-            imageURL: SERVER_URL + "/out/faceExpressionRecognition.png",
+            imageURL:
+              SERVER_URL +
+              "/out/faceExpressionRecognition.png?" +
+              Math.round(Math.random() * 10000000000),
             detections: detections.length
-              ? detections.map((e) => e["detection"])
+              ? detections.map((e) => ({
+                  ...e["detection"],
+                  expressions: { ...e["expressions"] },
+                }))
               : [],
           },
         });
@@ -184,7 +205,7 @@ app.post(
   }
 );
 
-app.post("/face_recognition", upload.array("images", 2), async (req, res) => {
+app.post("/face_recognition", upload.array("images"), async (req, res) => {
   try {
     if (req.files && req.files.length > 1) {
       var SERVER_URL = req.protocol + "://" + req.get("host");
@@ -223,9 +244,27 @@ app.post("/face_recognition", upload.array("images", 2), async (req, res) => {
 
       saveFile("referenceImage.png", outRef.toBuffer("image/png"));
 
+      const queryDrawBoxes = resultsQuery.map((res) => {
+        const bestMatch = faceMatcher.findBestMatch(res.descriptor);
+        return new faceapi.draw.DrawBox(res.detection.box, {
+          label: bestMatch.toString(),
+        });
+      });
+      const outQuery = faceapi.createCanvasFromMedia(queryImage);
+      queryDrawBoxes.forEach((drawBox) => drawBox.draw(outQuery));
+
+      saveFile("queryImage.png", outQuery.toBuffer("image/png"));
+
       res.json({
         success: {
-          imageURL: SERVER_URL + "/out/referenceImage.png",
+          queryURL:
+            SERVER_URL +
+            "/out/queryImage.png?" +
+            Math.round(Math.random() * 10000000000),
+          imageURL:
+            SERVER_URL +
+            "/out/referenceImage.png?" +
+            Math.round(Math.random() * 10000000000),
           detections: resultsQuery.length
             ? resultsQuery.map((e) => e["detection"])
             : [],
