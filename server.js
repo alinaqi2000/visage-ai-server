@@ -25,7 +25,7 @@ app.use("/out", express.static(__dirname + "/out"));
 
 // app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: "50mb" }));
 
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
