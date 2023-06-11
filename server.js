@@ -41,29 +41,47 @@ var storage = multer.diskStorage({
     cb(null, file.originalname);
   },
 });
-var upload = multer({ storage: storage });
+var upload = multer();
 
-app.post("/face_detection", upload.single("image"), async (req, res) => {
+async function uploadBase64(req, name) {
+  var base64Data = req.body[name].data;
+  var file_name = req.body[name].name;
+  let base64Image = base64Data.split(";base64,").pop();
+  return new Promise(async (resolve, reject) => {
+    await fs.writeFile(
+      __dirname + "/uploads/" + file_name,
+      base64Image,
+      "base64",
+      function (err) {
+        if (err) console.log(err);
+        resolve("done");
+      }
+    );
+    resolve("done");
+  });
+}
+
+app.post("/face_detection", upload.array(), async (req, res) => {
   try {
-    if (req.file) {
-      var SERVER_URL = req.protocol + "://" + req.get("host");
-      const image = req.file.path;
+    var file_name = req.body.image.name;
+    if (file_name) {
+      await uploadBase64(req, "image");
+      const image = __dirname + "/uploads/" + file_name;
 
+      var SERVER_URL = req.protocol + "://" + req.get("host");
       await faceDetectionNet.loadFromDisk("./weights");
       const img = await canvas.loadImage(image);
-
       await removeFile(image);
-
       const detections = await faceapi.detectAllFaces(
         img,
         faceDetectionOptions
       );
       const out = faceapi.createCanvasFromMedia(img);
       faceapi.draw.drawDetections(out, detections);
-
       saveFile("faceDetection.png", out.toBuffer("image/png"));
       res.json({
         success: {
+          imageData: out.toDataURL(),
           imageURL:
             SERVER_URL +
             "/out/faceDetection.png?" +
@@ -83,81 +101,83 @@ app.post("/face_detection", upload.single("image"), async (req, res) => {
   }
 });
 
-app.post(
-  "/age_and_gender_recognition",
-  upload.single("image"),
-  async (req, res) => {
-    try {
-      if (req.file) {
-        var SERVER_URL = req.protocol + "://" + req.get("host");
+app.post("/age_and_gender_recognition", upload.array(), async (req, res) => {
+  try {
+    var file_name = req.body.image.name;
+    if (file_name) {
+      await uploadBase64(req, "image");
+      const image = __dirname + "/uploads/" + file_name;
+      var SERVER_URL = req.protocol + "://" + req.get("host");
 
-        const image = req.file.path;
-        await faceDetectionNet.loadFromDisk("./weights");
-        await faceapi.nets.faceLandmark68Net.loadFromDisk("./weights");
-        await faceapi.nets.ageGenderNet.loadFromDisk("./weights");
+      await faceDetectionNet.loadFromDisk("./weights");
+      await faceapi.nets.faceLandmark68Net.loadFromDisk("./weights");
+      await faceapi.nets.ageGenderNet.loadFromDisk("./weights");
 
-        const img = await canvas.loadImage(image);
+      const img = await canvas.loadImage(image);
 
-        await removeFile(image);
-        const detections = await faceapi
-          .detectAllFaces(img, faceDetectionOptions)
-          .withFaceLandmarks()
-          .withAgeAndGender();
+      await removeFile(image);
+      const detections = await faceapi
+        .detectAllFaces(img, faceDetectionOptions)
+        .withFaceLandmarks()
+        .withAgeAndGender();
 
-        const out = faceapi.createCanvasFromMedia(img);
-        faceapi.draw.drawDetections(
-          out,
-          detections.map((res) => res.detection)
-        );
-        detections.forEach((result) => {
-          const { age, gender, genderProbability } = result;
-          new faceapi.draw.DrawTextField(
-            [
-              `${faceapi.utils.round(age, 0)} years`,
-              `${gender} (${faceapi.utils.round(genderProbability)})`,
-            ],
-            result.detection.box.bottomLeft
-          ).draw(out);
-        });
+      const out = faceapi.createCanvasFromMedia(img);
+      faceapi.draw.drawDetections(
+        out,
+        detections.map((res) => res.detection)
+      );
+      detections.forEach((result) => {
+        const { age, gender, genderProbability } = result;
+        new faceapi.draw.DrawTextField(
+          [
+            `${faceapi.utils.round(age, 0)} years`,
+            `${gender} (${faceapi.utils.round(genderProbability)})`,
+          ],
+          result.detection.box.bottomLeft
+        ).draw(out);
+      });
 
-        saveFile("faceDetection.png", out.toBuffer("image/png"));
-        res.json({
-          success: {
-            imageURL:
-              SERVER_URL +
-              "/out/faceDetection.png?" +
-              Math.round(Math.random() * 10000000000),
-            detections: detections.length
-              ? detections.map((e) => ({
-                  ...e["detection"],
-                  gender: e.gender,
-                  genderProbability: e.genderProbability,
-                  age: e.age,
-                }))
-              : [],
-          },
-        });
-      } else {
-        res.json({
-          error: "Please add a valid image.",
-        });
-      }
-    } catch (e) {
+      saveFile("faceDetection.png", out.toBuffer("image/png"));
       res.json({
-        error: e,
+        success: {
+          imageData: out.toDataURL(),
+          imageURL:
+            SERVER_URL +
+            "/out/faceDetection.png?" +
+            Math.round(Math.random() * 10000000000),
+          detections: detections.length
+            ? detections.map((e) => ({
+                ...e["detection"],
+                gender: e.gender,
+                genderProbability: e.genderProbability,
+                age: e.age,
+              }))
+            : [],
+        },
+      });
+    } else {
+      res.json({
+        error: "Please add a valid image.",
       });
     }
+  } catch (e) {
+    res.json({
+      error: e,
+    });
   }
-);
+});
 
 app.post(
   "/face_expression_recognition",
   upload.single("image"),
   async (req, res) => {
     try {
-      if (req.file) {
+      var file_name = req.body.image.name;
+      if (file_name) {
+        await uploadBase64(req, "image");
+        const image = __dirname + "/uploads/" + file_name;
+
         var SERVER_URL = req.protocol + "://" + req.get("host");
-        const image = req.file.path;
         await faceDetectionNet.loadFromDisk("./weights");
         await faceapi.nets.faceLandmark68Net.loadFromDisk("./weights");
         await faceapi.nets.faceExpressionNet.loadFromDisk("./weights");
@@ -180,6 +200,7 @@ app.post(
         saveFile("faceExpressionRecognition.png", out.toBuffer("image/png"));
         res.json({
           success: {
+            imageData: out.toDataURL(),
             imageURL:
               SERVER_URL +
               "/out/faceExpressionRecognition.png?" +
@@ -205,13 +226,17 @@ app.post(
   }
 );
 
-app.post("/face_recognition", upload.array("images"), async (req, res) => {
+app.post("/face_recognition", upload.array(), async (req, res) => {
   try {
-    if (req.files && req.files.length > 1) {
-      var SERVER_URL = req.protocol + "://" + req.get("host");
+    var file_name = req.body.image.name;
+    var query_name = req.body.query.name;
+    if (file_name) {
+      await uploadBase64(req, "image");
+      await uploadBase64(req, "query");
+      const REFERENCE_IMAGE = __dirname + "/uploads/" + file_name;
+      const QUERY_IMAGE = __dirname + "/uploads/" + query_name;
 
-      const REFERENCE_IMAGE = req.files[0].path;
-      const QUERY_IMAGE = req.files[1].path;
+      var SERVER_URL = req.protocol + "://" + req.get("host");
 
       await faceDetectionNet.loadFromDisk("./weights");
       await faceapi.nets.faceLandmark68Net.loadFromDisk("./weights");
@@ -257,6 +282,8 @@ app.post("/face_recognition", upload.array("images"), async (req, res) => {
 
       res.json({
         success: {
+          imageData: outRef.toDataURL(),
+          queryData: outQuery.toDataURL(),
           queryURL:
             SERVER_URL +
             "/out/queryImage.png?" +
