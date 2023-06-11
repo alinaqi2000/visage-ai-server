@@ -63,6 +63,11 @@ async function uploadBase64(req, name) {
 
 app.post("/face_detection", upload.array(), async (req, res) => {
   try {
+    var baseDir = path.resolve(__dirname, "./uploads");
+
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir);
+    }
     var file_name = req.body.image.name;
     if (file_name) {
       await uploadBase64(req, "image");
@@ -103,6 +108,11 @@ app.post("/face_detection", upload.array(), async (req, res) => {
 
 app.post("/age_and_gender_recognition", upload.array(), async (req, res) => {
   try {
+    var baseDir = path.resolve(__dirname, "./uploads");
+
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir);
+    }
     var file_name = req.body.image.name;
     if (file_name) {
       await uploadBase64(req, "image");
@@ -172,6 +182,11 @@ app.post(
   upload.single("image"),
   async (req, res) => {
     try {
+      var baseDir = path.resolve(__dirname, "./uploads");
+
+      if (!fs.existsSync(baseDir)) {
+        fs.mkdirSync(baseDir);
+      }
       var file_name = req.body.image.name;
       if (file_name) {
         await uploadBase64(req, "image");
@@ -228,6 +243,11 @@ app.post(
 
 app.post("/face_recognition", upload.array(), async (req, res) => {
   try {
+    var baseDir = path.resolve(__dirname, "./uploads");
+
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir);
+    }
     var file_name = req.body.image.name;
     var query_name = req.body.query.name;
     if (file_name) {
