@@ -1,10 +1,21 @@
 const express = require("express");
-const faceapi = require("face-api.js");
-const bodyParser = require("body-parser");
-const multer = require("multer");
-var fs = require("fs");
-var path = require("path");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+const faceapi = require("face-api.js");
+const { Canvas, Image, ImageData } = require("canvas");
+const multer = require("multer");
+const tf = require("@tensorflow/tfjs");
+require("@tensorflow/tfjs-node");
+
+// Initialize TensorFlow.js with CPU backend
+const tfjsBackend = tf.backend();
+if (tfjsBackend.name !== 'cpu') {
+  tf.setBackend('cpu');
+}
+
+const bodyParser = require("body-parser");
+
 const app = express();
 app.use(
   cors({
@@ -60,6 +71,9 @@ async function uploadBase64(req, name) {
     resolve("done");
   });
 }
+app.get("/", (req, res) => {
+  res.json({ "API": "Morphous AI Server", "version": "1.0.0" });
+});
 
 app.post("/face_detection", upload.array(), async (req, res) => {
   try {
@@ -72,7 +86,6 @@ app.post("/face_detection", upload.array(), async (req, res) => {
     if (file_name) {
       await uploadBase64(req, "image");
       const image = __dirname + "/uploads/" + file_name;
-
       var SERVER_URL = req.protocol + "://" + req.get("host");
       await faceDetectionNet.loadFromDisk("./weights");
       const img = await canvas.loadImage(image);
@@ -157,11 +170,11 @@ app.post("/age_and_gender_recognition", upload.array(), async (req, res) => {
             Math.round(Math.random() * 10000000000),
           detections: detections.length
             ? detections.map((e) => ({
-                ...e["detection"],
-                gender: e.gender,
-                genderProbability: e.genderProbability,
-                age: e.age,
-              }))
+              ...e["detection"],
+              gender: e.gender,
+              genderProbability: e.genderProbability,
+              age: e.age,
+            }))
             : [],
         },
       });
@@ -222,9 +235,9 @@ app.post(
               Math.round(Math.random() * 10000000000),
             detections: detections.length
               ? detections.map((e) => ({
-                  ...e["detection"],
-                  expressions: { ...e["expressions"] },
-                }))
+                ...e["detection"],
+                expressions: { ...e["expressions"] },
+              }))
               : [],
           },
         });
