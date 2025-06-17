@@ -343,4 +343,4 @@ app.post("/face_recognition", upload.array(), async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Listening on port ${PORT}!`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Listening on port ${PORT}`));
